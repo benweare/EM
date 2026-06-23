@@ -8,28 +8,45 @@ import numpy as np
 
 # Define functions.
 
-# Import from .msa file.
+# Import from .msa file as [x, y].
 def _import_data_from_file( datafile, delim ):
-    data = genfromtxt(datafile, delimiter=delim, comments='#')
-    array = np.array( data[:,0:1] )
+    data = np.genfromtxt(datafile, delimiter=delim, comments='#')
+    array = np.array( data )
     return array
 
 
 # Extract spectrum region of interest.
-def _extract_roi( x1, start, end ):
-	x2 = x1[start:end]
-	return x2
+def _extract_roi( inarr, start, end ):
+	temp = np.argwhere( end > inarr[:,0] )
+	outarr = np.argwhere( start < temp[:,0] )
+	return outarr
 
+def _calc_goodness_of_fit( pcov ):
+	return
 
-# Get the energy scale from the msa
-def _get_scale( xdata ):
-	scale = xdata[1] - xdata[0]
-	return scale
+def _print_best_fit( popt, p_sigma, sigma ):
+	print('\nmu +/- ' + str(sigma) + 'sigma')
+	if len(popt) == 4:
+		print( '\na = ' + str(popt[0]) + ' +/- ' + str(p_sigma[0]*sigma) )
+		print( '\nb = ' + str(popt[1]) + ' +/- ' + str(p_sigma[1]*sigma) )
+		print( '\nc = ' + str(popt[2]) + ' +/- ' + str(p_sigma[2]*sigma) )
+		print( '\nd = ' + str(popt[0]) + ' +/- ' + str(p_sigma[3]*sigma) )
+	if len(popt) == 3:
+		print( '\na = ' + str(popt[0]) + ' +/- ' + str(p_sigma[0]*sigma) )
+		print( '\nb = ' + str(popt[1]) + ' +/- ' + str(p_sigma[1]*sigma) )
+		print( '\nc = ' + str(popt[2]) + ' +/- ' + str(p_sigma[2]*sigma) )
+	if len(popt) == 2:
+		print( '\na = ' + str(popt[0]) + ' +/- ' + str(p_sigma[0]*sigma) )
+		print( '\nb = ' + str(popt[1]) + ' +/- ' + str(p_sigma[1]*sigma) )
+	else:
+		print( 'Could not print optimised parameters.' )
+	return
+
 
 # Import .msa data exported from Digital Micrograph 3.
 filename = 'file_name.msa'; # This is your file name.
 
-xdata, ydata = _import_data_from_file( filename, ',' )
+data1 = _import_data_from_file( filename, ',' )
 
 # There may be situations where the data of interest is a smaller section
 # of the total spectrum. The code below allows the user to define the start
@@ -39,15 +56,15 @@ xdata, ydata = _import_data_from_file( filename, ',' )
 # Extracting the edge. Define the start of the edge.
 startedge = 176
 endedge = 381
-xdata2 = _extract_roi( xdata1, startedge, endedge )
-ydata2 = _extract_roi( ydata1, startedge, endedge )
+data2 = _extract_roi( data1, startedge, endedge )
 
+print(data2)
 
 # Analysing exponential fitting
 # Exclude data from table where xdata is above i eV and change i to the
 # appropriate value.
 i = 280
-xdata3, ydata3 = _extract_roi( xdata2, ydata2, 0, i )
+data3 = _extract_roi( data2, data2[0,0], i )
 
 # Define fit - use one of the fits in single quotations below:
 # 'exp1' is a one-term exponential model f(x) = a*exp(b*x)
@@ -67,27 +84,36 @@ xdata3, ydata3 = _extract_roi( xdata2, ydata2, 0, i )
 # available in the Curve Fitting Toolbox are sufficient.
 
 def _exp1( x, a, b ):
-	return = a*np.exp(b*x)
-
+	func = a*np.exp(b*x)
+	return func 
+'''
 def _exp2( x, a, b, c, d ):
-	return = a*np.exp(b*x) + c*np.exp(d*x)
+	return func = a*np.exp(b*x) + c*np.exp(d*x)
 
 def _power1( x, a, b ):
-	return = a*np.power(x, b)
+	return func = a*np.power(x, b)
 
 def _power2( x, a, b, c ):
-	return = a*np.power(x, b) + c
-
+	return func = a*np.power(x, b) + c
+'''
+func = _exp1
 
 # Fit the new excluded data xdata2 (eV) - the fit in single quotations can
 # be changed as appropriate.
-from scipy.optimise import curve_fit
-#[f,gof,output] = 
-popt, pcov = curve_fit( _exp1, xdata3, ydata3  )
+from scipy.optimize import curve_fit
+
+popt, pcov = curve_fit( func, data3[:,0], data3[:,1]  )
 # Get residuals from fit
-residuals = #ydata2 - f(xdata2); f(xdata2, popt) - ydata
-# Get fit options
-fitoptions = fitoptions(f)
+residuals = data2[:,1] - func(data2[:,0], *popt)
+
+# Fitting statistics.
+ss_res = np.sum( np.square(residuals) )
+ss_tot = np.sum( data2[:,1] - np.square( np.mean(data2[:,1]) ) )
+r_square = 1 - (ss_res/ss_tot)
+p_sigma = np.sqrt(np.diag(pcov))
+
+_print_best_fit( popt, p_sigma, 1 )
+print( 'R2 = ' + str(r_square) )
 
 # Approximate the signal integral using the trapezoidal rule. This can be
 # used to quantify the signal-to-noise ratio (SNR) as well as in further
@@ -95,40 +121,28 @@ fitoptions = fitoptions(f)
 # cross-section needed for absolute quantification depends on the system
 # being studied. The window of integration can be defined by the user.
 # Define the start of integration for signal integral.
-startint = xdata2 > 284;
-xdataint1 = xdata2(startint);
-residualsint1 = residuals(startint);
-# Define end of integration for signal integral.
-endint = xdataint1 < 300;
-xdataint2 = xdataint1(endint);
-residualsint2 = residualsint1(endint);
-# Integrate signal
-ik = trapz(xdataint2,residualsint2)
-# Integrate background
-fityvalues = f(xdata2);
-bkgint1 = fityvalues(startint);
-bkgint2 = bkgint1(endint);
-ib = trapz(xdataint2,bkgint2)
-# Calculate variance in the background integral
-varib = var(bkgint2)
-# h parameter
-h = (ib+varib)/ib
-# Signal-to-noise ratio (SNR)
-snr = ik/((ik+(h*ib))^0.5)
 
 from scipy.integrate import trapezoid
 
-xdataint = _extract_roi( xdata, 284, 300 )
-residualsint = _extract_roi( residuals, 284, 300 )
+startint = 284
+endint = 300
+
+dataint = _extract_roi( data, startint, endint )
+residualsint = _extract_roi( residuals, startint, endint )
 
 ik = trapezoid( xdataint, residualsint )# check this one
-fityvalues = 
-bkgint = _extract_roi( fityvalues, 284, 300 )
+fityvalues = func( data2[:,0] )
+bkgint = _extract_roi( fityvalues, startint, endint )
 ib = trapezoid( xdataint, bkgint )
 
+# Variance in background signal.
 varib = np.var( bkgint )
+# H parameter.
 h = (ib+varib)/ib
+# Signal-to-noise ratio.
 snr = np.sqrt( ik/((ik+(h*ib)) ) )
+
+print('SNR = ' + str (snr))
 
 
 ## Figure plotting
@@ -147,9 +161,9 @@ axs[0].plot(f,'b',xdata2,ydata2,'k','predobs', lw=2);
 axs[0].plot(xdata2,residuals,'r', lw=2);
 
 # Define characteristics of fit and original data axes
-axs[0].XLim = [-inf inf]; % Limits of x-axis
-axs[0].YLim = [-inf 500000]; % Limits of y-axis
-axs[0].FontName = 'Calibri';
+axs[0].set_xlim(None, None) # Limits of x-axis
+axs[0].set_ylim(None, None) # Limits of y-axis
+#axs[0].FontName = 'Calibri';
 #axs[0].setTickDir = 'out';
 #axs[0].TickLength = [0.005 0.005];
 axs[0].grid(true)
@@ -170,10 +184,10 @@ axs[1].legend('Original data','Fitted curve','Upper prediction bounds','Lower pr
 axs[1].plot(f,xdata3,ydata3,'Residuals', lw=2);
 
 # Define characteristics for residuals axes
-axs[1].set_xlim = [-inf inf]; % Limits of x-axis
-axs[1].set_ylim = [-inf inf]; % Limits of y-axis
+axs[1].set_xlim(None, None) # Limits of x-axis
+axs[1].set_ylim(None, None) # Limits of y-axis
 #axs[1].TickDir = 'out';
-axs[1].TickLength = [0.005 0.005];
+#axs[1].TickLength = [0.005 0.005];
 axs[1].grid(true)
 axs[1].Layer = 'bottom'
 axs[1].set_title( 'Residuals of fit',fontsize=30 )
@@ -181,4 +195,5 @@ axs[1].set_xlabel('eV')
 axs[1].set_ylabel('Counts')
 axs[1].legend('Residuals', 'Zero line')
 
+plt.show()
 # End of script.
