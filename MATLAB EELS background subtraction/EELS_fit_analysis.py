@@ -17,8 +17,16 @@ def _import_data_from_file( datafile, delim ):
 
 # Extract spectrum region of interest.
 def _extract_roi( inarr, start, end ):
-	temp = np.argwhere( end > inarr[:,0] )
-	outarr = np.argwhere( start < temp[:,0] )
+	if inarr.ndim == 2:
+		rows = np.where( inarr[:,0] > start )
+		temp = inarr[rows]
+		rows = np.where( temp[:,0] < end )
+		outarr = temp[rows]
+	if inarr.ndim == 1:
+		rows = np.where( inarr > start )
+		temp = inarr[rows]
+		rows = np.where( temp < end )
+		outarr = temp[rows]
 	return outarr
 
 def _calc_goodness_of_fit( pcov ):
@@ -54,16 +62,14 @@ data1 = _import_data_from_file( filename, ',' )
 # tends to lead to better fitting of the background.
 
 # Extracting the edge. Define the start of the edge.
-startedge = 176
-endedge = 381
+startedge = 175
+endedge = 380
 data2 = _extract_roi( data1, startedge, endedge )
-
-print(data2)
 
 # Analysing exponential fitting
 # Exclude data from table where xdata is above i eV and change i to the
 # appropriate value.
-i = 280
+i = 350
 data3 = _extract_roi( data2, data2[0,0], i )
 
 # Define fit - use one of the fits in single quotations below:
@@ -124,16 +130,16 @@ print( 'R2 = ' + str(r_square) )
 
 from scipy.integrate import trapezoid
 
-startint = 284
-endint = 300
+startint = 200
+endint = 400
 
-dataint = _extract_roi( data, startint, endint )
+dataint = _extract_roi( data2, startint, endint )
 residualsint = _extract_roi( residuals, startint, endint )
 
-ik = trapezoid( xdataint, residualsint )# check this one
-fityvalues = func( data2[:,0] )
+ik = trapezoid( dataint, residualsint )# check this one
+fityvalues = func( data2[:,0], *popt )
 bkgint = _extract_roi( fityvalues, startint, endint )
-ib = trapezoid( xdataint, bkgint )
+ib = trapezoid( dataint, bkgint )
 
 # Variance in background signal.
 varib = np.var( bkgint )
@@ -142,7 +148,7 @@ h = (ib+varib)/ib
 # Signal-to-noise ratio.
 snr = np.sqrt( ik/((ik+(h*ib)) ) )
 
-print('SNR = ' + str (snr))
+#print('SNR = ' + str (snr))
 
 
 ## Figure plotting
@@ -153,12 +159,20 @@ print('SNR = ' + str (snr))
 
 import matplotlib.pyplot as plt
 
-fig, axs = plt.subplots( (1,2) )
+fig, axs = plt.subplots( 1 )
 # Plot fit with confidence bounds and original data
-axs[0].plot(f,'b',xdata2,ydata2,'k','predobs', lw=2);
 
+#axs.plot(data1[:,0], data1[:,1], lw=2);
+#axs.plot(data2[:,0], data2[:,1], lw=2);
+#axs.plot(data3[:,0], data3[:,1], lw=2);
+#axs.plot( data2[:,0], func( data2, *popt ), lw=2  )
+
+axs.plot(ik)
+plt.show()
+
+'''
 # Plot subtracted spectrum
-axs[0].plot(xdata2,residuals,'r', lw=2);
+axs[0].plot(data2, residuals,'r', lw=2);
 
 # Define characteristics of fit and original data axes
 axs[0].set_xlim(None, None) # Limits of x-axis
@@ -171,7 +185,7 @@ axs[0].grid(true)
 axs[0].set_title( ('Background of fit data below ' + str(i) + ' eV'), fontsize=30 )
 axs[0].set_xlabel('eV')
 axs[0].set_ylabel('Counts')
-axs[1].legend('Original data','Fitted curve','Upper prediction bounds','Lower prediction bounds','Subtracted spectrum')
+axs[0].legend('Original data','Fitted curve','Upper prediction bounds','Lower prediction bounds','Subtracted spectrum')
 
 
 # Residuals from a fitted model are the differences between the original
@@ -181,7 +195,7 @@ axs[1].legend('Original data','Fitted curve','Upper prediction bounds','Lower pr
 # systematic pattern, the model does not fit the data very well. Plot
 # residuals
 
-axs[1].plot(f,xdata3,ydata3,'Residuals', lw=2);
+axs[1].plot(f, data3, data3,'Residuals', lw=2);
 
 # Define characteristics for residuals axes
 axs[1].set_xlim(None, None) # Limits of x-axis
@@ -196,4 +210,4 @@ axs[1].set_ylabel('Counts')
 axs[1].legend('Residuals', 'Zero line')
 
 plt.show()
-# End of script.
+# End of script.'''
