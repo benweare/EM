@@ -1,7 +1,9 @@
 '''
 Python version of EELS fit analysis script.
 
-Need to convert to eV for correct array indexing in functions below.
+Author: E Weare
+Location: nmRC
+Contact: benjamin.weare1@nottingham.ac.uk
 '''
 
 import numpy as np
@@ -29,23 +31,24 @@ def _extract_roi( inarr, start, end ):
 		outarr = temp[rows]
 	return outarr
 
+
 def _calc_goodness_of_fit( pcov ):
 	return
 
 def _print_best_fit( popt, p_sigma, sigma ):
-	print('\nmu +/- ' + str(sigma) + 'sigma')
+	print('\nmu +/- ' + str(sigma) + 'sigma:')
 	if len(popt) == 4:
-		print( '\na = ' + str(popt[0]) + ' +/- ' + str(p_sigma[0]*sigma) )
-		print( '\nb = ' + str(popt[1]) + ' +/- ' + str(p_sigma[1]*sigma) )
-		print( '\nc = ' + str(popt[2]) + ' +/- ' + str(p_sigma[2]*sigma) )
-		print( '\nd = ' + str(popt[0]) + ' +/- ' + str(p_sigma[3]*sigma) )
+		print( 'a = ' + str(popt[0]) + ' +/- ' + str(p_sigma[0]*sigma) )
+		print( 'b = ' + str(popt[1]) + ' +/- ' + str(p_sigma[1]*sigma) )
+		print( 'c = ' + str(popt[2]) + ' +/- ' + str(p_sigma[2]*sigma) )
+		print( 'd = ' + str(popt[0]) + ' +/- ' + str(p_sigma[3]*sigma) )
 	if len(popt) == 3:
-		print( '\na = ' + str(popt[0]) + ' +/- ' + str(p_sigma[0]*sigma) )
-		print( '\nb = ' + str(popt[1]) + ' +/- ' + str(p_sigma[1]*sigma) )
-		print( '\nc = ' + str(popt[2]) + ' +/- ' + str(p_sigma[2]*sigma) )
+		print( 'a = ' + str(popt[0]) + ' +/- ' + str(p_sigma[0]*sigma) )
+		print( 'b = ' + str(popt[1]) + ' +/- ' + str(p_sigma[1]*sigma) )
+		print( 'c = ' + str(popt[2]) + ' +/- ' + str(p_sigma[2]*sigma) )
 	if len(popt) == 2:
-		print( '\na = ' + str(popt[0]) + ' +/- ' + str(p_sigma[0]*sigma) )
-		print( '\nb = ' + str(popt[1]) + ' +/- ' + str(p_sigma[1]*sigma) )
+		print( 'a = ' + str(popt[0]) + ' +/- ' + str(p_sigma[0]*sigma) )
+		print( 'b = ' + str(popt[1]) + ' +/- ' + str(p_sigma[1]*sigma) )
 	else:
 		print( 'Could not print optimised parameters.' )
 	return
@@ -92,25 +95,30 @@ data3 = _extract_roi( data2, data2[0,0], i )
 def _exp1( x, a, b ):
 	func = a*np.exp(b*x)
 	return func 
-'''
+
 def _exp2( x, a, b, c, d ):
-	return func = a*np.exp(b*x) + c*np.exp(d*x)
+	func = a*np.exp(b*x) + c*np.exp(d*x)
+	return func
 
 def _power1( x, a, b ):
-	return func = a*np.power(x, b)
+	func = a*np.power(x, b)
+	return func
 
 def _power2( x, a, b, c ):
-	return func = a*np.power(x, b) + c
-'''
-func = _exp1
+	func = a*np.power(x, b) + c
+	return func
+
+func = _power1
 
 # Fit the new excluded data xdata2 (eV) - the fit in single quotations can
 # be changed as appropriate.
 from scipy.optimize import curve_fit
 
 popt, pcov = curve_fit( func, data3[:,0], data3[:,1]  )
+
 # Get residuals from fit
-residuals = data2[:,1] - func(data2[:,0], *popt)
+residuals = data2.copy()
+residuals[:,1] = data2[:,1] - func(data2[:,0], *popt)
 
 # Fitting statistics.
 ss_res = np.sum( np.square(residuals) )
@@ -136,8 +144,11 @@ endint = 400
 dataint = _extract_roi( data2, startint, endint )
 residualsint = _extract_roi( residuals, startint, endint )
 
-ik = trapezoid( dataint, residualsint )# check this one
-fityvalues = func( data2[:,0], *popt )
+# Integrate signal
+ik = trapezoid( dataint, residualsint )
+# Integrate background
+fityvalues = data2.copy()
+fityvalues[:,1] = func( data2[:,0], *popt )
 bkgint = _extract_roi( fityvalues, startint, endint )
 ib = trapezoid( dataint, bkgint )
 
@@ -148,8 +159,6 @@ h = (ib+varib)/ib
 # Signal-to-noise ratio.
 snr = np.sqrt( ik/((ik+(h*ib)) ) )
 
-#print('SNR = ' + str (snr))
-
 
 ## Figure plotting
 # Plot fit with confidence bounds, original EELS data, and the subtracted
@@ -159,15 +168,30 @@ snr = np.sqrt( ik/((ik+(h*ib)) ) )
 
 import matplotlib.pyplot as plt
 
-fig, axs = plt.subplots( 1 )
+fig, axs = plt.subplots( 1,2 )
 # Plot fit with confidence bounds and original data
 
-#axs.plot(data1[:,0], data1[:,1], lw=2);
-#axs.plot(data2[:,0], data2[:,1], lw=2);
-#axs.plot(data3[:,0], data3[:,1], lw=2);
-#axs.plot( data2[:,0], func( data2, *popt ), lw=2  )
+#axs.plot(data1[:,0], data1[:,1], lw=2, label='data1');
+axs[0].plot(data2[:,0], data2[:,1], lw=2, label='orignal EELS data');
+axs[0].plot(residuals[:,0], residuals[:,1], label='Subtracted spectrum')
+axs[0].plot( data2[:,0], func( data2[:,0], *popt ), lw=2, label='fitted curve'  )
 
-axs.plot(ik)
+axs[1].plot(residuals[:,0], residualsint[:,1], '.', label='Residuals of fit')
+axs[1].axhline(0, color='red', label='Zero line')
+
+#axs.plot(residuals[:,0], residuals[:,1], label='residuals')
+
+
+#axs.plot( dataint[:,0], dataint[:,1], label='dataint' )
+#axs.plot( bkgint[:,0], bkgint[:,1], label='bkgint' )
+
+#axs.plot(ib, data2[:,0], label='ib')
+
+#axs.set_ylim([2e7, 5e7])
+
+axs[0].legend()
+axs[1].legend()
+
 plt.show()
 
 '''
