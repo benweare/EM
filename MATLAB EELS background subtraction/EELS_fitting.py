@@ -1,14 +1,17 @@
 '''
-Python version of EELS fiting script.
+Python version of EELS_fitting.m script.
 
 Author: E Weare
 Location: nmRC
 Contact: benjamin.weare1@nottingham.ac.uk
+
+Please cite if you found this script usesful.
 '''
 
 import numpy as np
+from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
 
-# Define functions.
 
 # Import from .msa file as [x, y].
 def _import_data_from_file( datafile, delim ):
@@ -29,6 +32,7 @@ def _extract_roi( inarr, start, end ):
 # Normalsie range of array.
 def _normalise_data_range( data, dmin=0, dmax=1 ):
     return ((data-np.min(data))/(np.max(data)-np.min(data)))*( dmax - dmin )
+
 
 # Import .msa data exported from Digital Micrograph 3.
 filename = 'file_name.msa'; # This is your file name.
@@ -79,34 +83,65 @@ func = _power1
 # available in the Curve Fitting Toolbox are sufficient.
 
 # (i = start:increment:end for excluded data points)
-i = range(200, 280, 10)
-
-from scipy.optimize import curve_fit
-import matplotlib.pyplot as plt
+i = range(280, 230, -10)
 
 fig, ax = plt.subplots()
 
-for j in i:
-	# Define fit used and 'Exclude' data points in xdata (eV) for fitting
-	fitdata = _extract_roi( data2, j, endedge )
-	popt, pcov = curve_fit( func, fitdata[:,0], fitdata[:,1]  )
-	# Get residuals from fit to plot subtracted spectra
-	residuals = fitdata[:,1] - func(fitdata[:,0], *popt)
-
-
-	ax.plot( fitdata[:,0],\
-			_normalise_data_range(residuals,dmin=0, dmax=np.max(data2[:,1])),\
-			label=str(j) )
-
-
 ax.plot( data2[:,0],\
-		_normalise_data_range(data2[:,1],dmin=0,dmax=np.max(data2[:1])),\
+		data2[:,1],\
 		color='k',\
 		label='Orignal EELS data' )
 
-ax.legend()
+co = [[1.00 , 0.40, 0.40],
+	[1.00, 0.70, 0.40],
+	[1.00, 1.00, 0.40],
+	[0.70, 1.00, 0.40],
+	[0.40, 1.00, 0.40],
+	[0.40, 1.00, 0.70],
+	[0.40, 1.00, 1.00],
+	[0.40, 0.70, 1.00],
+	[0.40, 0.40, 1.00],
+	[0.70, 0.40, 1.00],
+	[1.00, 0.40, 1.00],
+	[1.00, 0.40, 0.70]]
 
-ax.set_xlim(startedge, endedge)
+n = 0
+for j in i:
+	fitmask = np.where( data2[:,0] < j )
+
+	# Do the curve fit.
+	try:
+		popt, pcov = curve_fit( func, data2[:,0][fitmask], data2[:,1][fitmask]  )
+	except:
+		print('Could not fit.')
+		continue
+
+	# Get residuals from fit to plot subtracted spectra
+	residuals = data2[:,1] - func(data2[:,0], *popt)
+	pltlabel = str(j) + ' eV'
+	try:
+		ax.plot( data2[:,0],\
+				residuals,\
+				color=co[n],\
+				label=pltlabel )
+		n = n+1
+	except:
+		print('Out of custom colours.')
+		ax.plot( data2[:,0],\
+				residuals,\
+				label=pltlabel )
+
+
+ax.legend(bbox_to_anchor=(1.05, 1),\
+			title='Fits excluding data above i eV',\
+            loc='upper left', borderaxespad=0.)
+ax.set_xlabel('Energy loss / eV')
+ax.set_ylabel('Normalised Counts')
+ax.grid(True)
+ax.set_title('EELS spectra after subtracting fitted curves')
+
+ax.set_box_aspect(1)
+ax.set_xlim([startedge, endedge])
 
 plt.show()
 
