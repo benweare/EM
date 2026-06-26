@@ -201,7 +201,7 @@ axs[0].plot( data2[:,0],\
 			color='b'  )
 
 axs[1].plot(data2[:,0][fitmask],\
-			_normalise_data_range(residuals[fitmask],-1,1),\
+			residuals[fitmask],\
 			'.',\
 			color='b',\
 			lw = 1,\
