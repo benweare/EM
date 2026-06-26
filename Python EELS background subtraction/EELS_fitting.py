@@ -5,7 +5,7 @@ Author: E Weare
 Location: nmRC
 Contact: benjamin.weare1@nottingham.ac.uk
 
-Please cite if you found this script usesful.
+Please cite if you found this script useful.
 '''
 
 import numpy as np

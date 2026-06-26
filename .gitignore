@@ -3,3 +3,6 @@
 # Drafts of documentation files
 *.doc
 *.docx
+
+# Spectra used for Python development.
+*.msa

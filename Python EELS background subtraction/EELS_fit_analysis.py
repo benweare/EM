@@ -1,9 +1,11 @@
 '''
-Python version of EELS fit analysis script.
+Python version of EELS_fit_analysis.m script.
 
 Author: E Weare
 Location: nmRC
 Contact: benjamin.weare1@nottingham.ac.uk
+
+Please cite if you found this script useful.
 '''
 
 import numpy as np
@@ -40,6 +42,7 @@ def _normalise_data_range( data, dmin=0, dmax=1 ):
     return ((data-np.min(data))/(np.max(data)-np.min(data)))*( dmax - dmin )
 
 
+# Print the results of the fitting.
 def _print_best_fit( popt, p_sigma, sigma ):
 	print('\nmu +/- ' + str(sigma) + 'sigma:')
 	if len(popt) == 4:
